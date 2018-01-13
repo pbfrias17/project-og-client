@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { setRoom, setGame } from '../actions';
-import RoomOpener from '../components/RoomOpener';
+import request from 'request';
+import SimpleForm from '../components/SimpleForm';
 import logo from '../components/logo.svg';
 import './styles/Home.css';
 
@@ -9,21 +10,49 @@ class Home extends Component {
     constructor(props) {
         super(props);
 
-        this.onNewRoomOpened = this.onNewRoomOpened.bind(this);
+        this.onJoinRoom = this.onJoinRoom.bind(this);
+        this.onOpenRoom = this.onOpenRoom.bind(this);
     }
 
-    onNewRoomOpened(room) {
-        this.props.setRoom(room);
+    onJoinRoom(roomId) {
+        request.post(
+            'http://localhost:4200/room/playerEnter', 
+            { 
+                headers: {
+                    'room-id': roomId 
+                }
+            }, 
+            (err, response, body) => {  
+                if (err) {
+                    console.log(err);
+                } else {
+                    const res = JSON.parse(response.body);
+                    console.log(res);
+                    let { success, player, room } = res;
+                    if (success) {  
+                        this.props.setRoom(room);
+                        this.props.history.push('/controller');
+                    }
+                }
+            }
+        );
+    }
 
-        // Rooms should be opened with a default/chosen game.
-        const game = {
-            name: 'whofkncarestho',
-            playerCounts: [1, 8],
-            players: [],
-        }
-        this.props.setGame(game);
-        
-        this.props.history.push('/room');
+    onOpenRoom(data) {
+        request.post('http://localhost:4200/room/open', {}, (err, response, body) => {  
+            if (err) {
+                console.log(err);
+            } else {
+                const res = JSON.parse(response.body);
+                console.log(res);
+                let { success, roomId, token } = res;
+                if (success) {  
+                    const room = { roomId, token };
+                    this.props.setRoom(room);
+                    this.props.history.push('/room');
+                }
+            }
+        });
     }
 
     render() {
@@ -35,19 +64,14 @@ class Home extends Component {
                 </header>
                 <p className="App-intro">Ready to play?</p>
                 <p className="App-intro">Join a room to get started!</p>
+                <SimpleForm input={{type: 'text', capslock: true}} buttonText='JOIN' onSubmit={this.onJoinRoom} />
                 <p className='App-intro'>Or</p>
                 <p className='App-intro'>Open a new room for your friends to join!</p>
-                <RoomOpener onNewRoomOpened={this.onNewRoomOpened}/>
+                <SimpleForm buttonText='OPEN' onSubmit={this.onOpenRoom} />
             </div>
         );
     }
 }
-
-const mapStateToProps = state => {
-    return {
-        room: state.room,
-    }
-};
 
 const mapDispatchToProps = dispatch => {
     return {
